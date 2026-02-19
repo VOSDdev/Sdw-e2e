@@ -1,0 +1,12 @@
+services:
+  e2e-bot:
+    build: .
+    container_name: sdw-e2e-bot
+    restart: unless-stopped
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - BASE_URL=${BASE_URL:-https://dev.sanatanadharma.world}
+    volumes:
+      - ./test-results:/app/test-results
+    mem_limit: 2g
