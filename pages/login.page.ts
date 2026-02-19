@@ -1,17 +1,18 @@
 import { BasePage } from './base.page';
+import { URLS } from '../fixtures/test-data';
 
 export class LoginPage extends BasePage {
   readonly emailInput = this.getByTestId('login-email-input');
   readonly passwordInput = this.getByTestId('login-password-input');
   readonly submitButton = this.getByTestId('login-submit-button');
-  readonly errorText = this.getByTestId('login-error-text');
   readonly googleButton = this.getByTestId('login-google-button');
   readonly registerLink = this.getByTestId('login-register-link');
   readonly forgotLink = this.getByTestId('login-forgot-link');
   readonly showPasswordButton = this.getByTestId('login-show-password-button');
+  readonly errorText = this.getByTestId('login-error-text');
 
   async open(): Promise<void> {
-    await this.navigate('/login');
+    await this.navigate(URLS.login);
   }
 
   async login(email: string, password: string): Promise<void> {

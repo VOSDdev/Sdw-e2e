@@ -1,12 +1,14 @@
 export const URLS = {
-  home: '/',
-  login: '/login',
-  register: '/register',
-  library: '/library',
-  audio: '/audio-gallery',
-  forum: '/forum',
-  search: '/search',
-  profile: '/profile',
+  home: '/ru',
+  login: '/ru/signin',
+  register: '/ru/signup',
+  forgot: '/ru/forgot',
+  library: '/ru/library',
+  audio: '/ru/audiofiles',
+  forum: '/ru/forum',
+  search: '/ru/search',
+  profile: '/ru/profile',
+  notifications: '/ru/notifications',
 } as const;
 
 export const PUBLIC_PAGES = [

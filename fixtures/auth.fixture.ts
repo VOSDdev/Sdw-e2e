@@ -13,7 +13,7 @@ export const test = base.extend<AuthFixtures>({
     const context = await browser.newContext();
     const page = await context.newPage();
 
-    await page.goto('/login');
+    await page.goto('/ru/signin');
     await page.getByTestId('login-email-input').fill(users.regular.email);
     await page.getByTestId('login-password-input').fill(users.regular.password);
     await page.getByTestId('login-submit-button').click();
