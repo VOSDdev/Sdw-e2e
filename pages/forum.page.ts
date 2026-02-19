@@ -1,9 +1,12 @@
 import { BasePage } from './base.page';
 
 export class ForumPage extends BasePage {
-  readonly topicList = this.getByTestId('forum-topic-list');
-  readonly newTopicButton = this.getByTestId('forum-newTopic-button');
-  readonly searchInput = this.getByTestId('forum-search-input');
+  readonly topicsList = this.getByTestId('forum-topics-list');
+  readonly topicItem = this.getByTestId('forum-topic-item');
+  readonly createTopicButton = this.getByTestId('forum-create-topic-button');
+  readonly createTopicDialog = this.getByTestId('forum-create-topic-dialog');
+  readonly filterButton = this.getByTestId('forum-filter-button');
+  readonly filterDialog = this.getByTestId('forum-filter-dialog');
 
   async open(): Promise<void> {
     await this.navigate('/forum');

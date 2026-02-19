@@ -1,15 +1,13 @@
 import { BasePage } from './base.page';
 
 export class ArticlePage extends BasePage {
-  readonly titleText = this.getByTestId('article-title-text');
-  readonly bodyContainer = this.getByTestId('article-body-container');
-  readonly likeButton = this.getByTestId('article-like-button');
-  readonly likeCount = this.getByTestId('article-like-count');
-  readonly favoriteButton = this.getByTestId('article-favorite-button');
-  readonly shareButton = this.getByTestId('article-share-button');
-  readonly commentInput = this.getByTestId('article-comment-input');
-  readonly commentSubmitButton = this.getByTestId('article-commentSubmit-button');
-  readonly commentList = this.getByTestId('article-comment-list');
+  readonly bodyContainer = this.getByTestId('content-body-container');
+  readonly likeButton = this.getByTestId('content-like');
+  readonly favoriteButton = this.getByTestId('content-favorite');
+  readonly shareButton = this.getByTestId('content-share');
+  readonly tagsList = this.getByTestId('content-tags-list');
+  readonly similarList = this.getByTestId('content-similar-list');
+  readonly purchaseButton = this.getByTestId('content-purchase-button');
 
   async open(slug: string): Promise<void> {
     await this.navigate(`/articles/${slug}`);

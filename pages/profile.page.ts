@@ -1,10 +1,11 @@
 import { BasePage } from './base.page';
 
 export class ProfilePage extends BasePage {
-  readonly avatarContainer = this.getByTestId('profile-avatar-container');
-  readonly nameText = this.getByTestId('profile-name-text');
-  readonly editButton = this.getByTestId('profile-edit-button');
-  readonly favoritesList = this.getByTestId('profile-favorites-list');
+  readonly container = this.getByTestId('profile-container');
+  readonly avatarImage = this.getByTestId('profile-avatar-image');
+  readonly firstnameInput = this.getByTestId('profile-firstname-input');
+  readonly lastnameInput = this.getByTestId('profile-lastname-input');
+  readonly saveButton = this.getByTestId('profile-save');
 
   async open(): Promise<void> {
     await this.navigate('/profile');
