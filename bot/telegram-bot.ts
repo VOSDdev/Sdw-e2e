@@ -154,7 +154,7 @@ async function handleCommand(chatId: number, text: string, messageId: number, fr
     return;
   }
 
-  const cmd = text.split(/\s+/)[0]?.toLowerCase();
+  const cmd = text.split(/\s+/)[0]?.toLowerCase().replace(/@\w+$/, '');
 
   switch (cmd) {
     case '/test': {
