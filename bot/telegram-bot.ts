@@ -1,17 +1,19 @@
 /**
  * SDW E2E Telegram Bot
  * Commands: /test, /smoke, /auth, /status, /report, /help
+ * AI: Handles natural language queries via OpenClaw
  * 
- * Run: npx ts-node bot/telegram-bot.ts
- * Env: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+ * Run: npx tsx bot/telegram-bot.ts
+ * Env: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, OPENCLAW_API_URL
  */
 
-import { execSync, exec } from 'child_process';
+import { exec } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 const ALLOWED_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '-1003563548274';
+const OPENCLAW_API_URL = process.env.OPENCLAW_API_URL;
 const BASE_DIR = path.resolve(__dirname, '..');
 const RESULTS_FILE = path.join(BASE_DIR, '.last-run.json');
 
@@ -40,7 +42,7 @@ interface RunResult {
 let offset = 0;
 let currentRun: string | null = null;
 
-async function sendMessage(chatId: number | string, text: string, replyTo?: number): Promise<void> {
+async function sendMessage(chatId: number | string, text: string, replyTo?: number): Promise<number | undefined> {
   const body: Record<string, unknown> = {
     chat_id: chatId,
     text,
@@ -49,13 +51,32 @@ async function sendMessage(chatId: number | string, text: string, replyTo?: numb
   if (replyTo) body.reply_to_message_id = replyTo;
 
   try {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    const data = await res.json() as { ok: boolean; result: { message_id: number } };
+    if (data.ok) return data.result.message_id;
   } catch (e) {
     console.error('Send error:', e);
+  }
+}
+
+async function editMessage(chatId: number | string, messageId: number, text: string): Promise<void> {
+  try {
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId,
+        text,
+        parse_mode: 'HTML',
+      }),
+    });
+  } catch (e) {
+    console.error('Edit error:', e);
   }
 }
 
@@ -86,7 +107,6 @@ function runTests(suite: string, grep: string): Promise<RunResult> {
           }
         }
       } catch {
-        // Fallback: parse from exit code
         if (error) {
           failed = 1;
           failedTests.push('Parse error — check logs');
@@ -147,19 +167,110 @@ function getLastResult(): RunResult | null {
   }
 }
 
+async function handleAI(chatId: number, text: string, messageId: number, from: string): Promise<void> {
+  if (!OPENCLAW_API_URL) {
+    await sendMessage(chatId, '⚠️ AI отключен (нет OPENCLAW_API_URL)', messageId);
+    return;
+  }
+
+  const thinkingMsgId = await sendMessage(chatId, '🧠 Думаю...', messageId);
+  if (!thinkingMsgId) return;
+
+  try {
+    const response = await fetch(OPENCLAW_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer openclaw-internal-token' // Optional, for future use
+      },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: 'system',
+            content: `You are the QA Automation Lead for sanatanadharma.world.
+Your name is "SDW QA".
+You are running on the Editorial server.
+You have access to:
+1. Source code mirror: /app/source (read-only)
+2. E2E Tests repo: /app (read/write)
+3. Shell commands: npm, npx playwright, git
+
+Your goal is to answer questions about tests, write new tests based on user requests, and analyze test results.
+When writing tests:
+- Use /app/pages/ Page Objects.
+- Follow data-testid conventions.
+- Tests go into /app/tests/.
+- Always check if a test file exists before creating a new one.
+
+User: ${from}`
+          },
+          { role: 'user', content: text }
+        ],
+        model: 'anthropic/claude-3-5-sonnet-20240620', // Or whatever default is
+        temperature: 0.7
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json() as { choices: { message: { content: string } }[] };
+    const answer = data.choices[0]?.message?.content || '⚠️ Пустой ответ от AI';
+
+    // Telegram text limit is 4096. Truncate if needed.
+    const safeAnswer = answer.length > 4000 ? answer.slice(0, 4000) + '...' : answer;
+    
+    // Convert Markdown to HTML-ish or just send as text. 
+    // Telegram HTML parser is strict. It's safer to strip markdown or use no parse_mode if AI output is complex.
+    // For now, let's try to send with HTML but fallback if it fails.
+    // Actually, simpler: send as plain text if it contains code blocks, or try to format.
+    // Let's just send safeAnswer. Since we use parse_mode='HTML' in sendMessage/editMessage, we need to be careful.
+    // AI models output Markdown.
+    // Quick fix: Replace ``` with <pre> and ` with <code> is hard reliably.
+    // Better: Send as Markdown if possible, or plain text.
+    // I'll disable parse_mode for AI replies to avoid errors with unclosed tags.
+    
+    // Re-implement editMessage to support disabling parse_mode
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: thinkingMsgId,
+        text: safeAnswer,
+        // parse_mode: 'Markdown' // Optional, often flaky. Let's stick to plain text for AI for stability.
+      }),
+    });
+
+  } catch (e) {
+    console.error('AI Error:', e);
+    await editMessage(chatId, thinkingMsgId, `❌ Ошибка AI: ${String(e)}`);
+  }
+}
+
 async function handleCommand(chatId: number, text: string, messageId: number, from: string): Promise<void> {
-  // Security: only allowed chat
+  // Security
   if (String(chatId) !== String(ALLOWED_CHAT_ID)) {
     await sendMessage(chatId, '⛔ Unauthorized chat');
     return;
   }
 
-  const cmd = text.split(/\s+/)[0]?.toLowerCase().replace(/@\w+$/, '');
+  // Remove @botname
+  const cleanText = text.replace(/@\w+\s?/, '').trim();
+  
+  if (!cleanText.startsWith('/')) {
+    // It's a natural language query -> AI
+    await handleAI(chatId, cleanText, messageId, from);
+    return;
+  }
+
+  const cmd = cleanText.split(/\s+/)[0]?.toLowerCase();
 
   switch (cmd) {
     case '/test': {
       if (currentRun) {
-        await sendMessage(chatId, '⏳ Тесты уже запущены, подождите...', messageId);
+        await sendMessage(chatId, '⏳ Тесты уже запущены...', messageId);
         return;
       }
       currentRun = 'all';
@@ -172,7 +283,7 @@ async function handleCommand(chatId: number, text: string, messageId: number, fr
 
     case '/smoke': {
       if (currentRun) {
-        await sendMessage(chatId, '⏳ Тесты уже запущены, подождите...', messageId);
+        await sendMessage(chatId, '⏳ Тесты уже запущены...', messageId);
         return;
       }
       currentRun = 'smoke';
@@ -185,7 +296,7 @@ async function handleCommand(chatId: number, text: string, messageId: number, fr
 
     case '/auth': {
       if (currentRun) {
-        await sendMessage(chatId, '⏳ Тесты уже запущены, подождите...', messageId);
+        await sendMessage(chatId, '⏳ Тесты уже запущены...', messageId);
         return;
       }
       currentRun = 'auth';
@@ -198,18 +309,15 @@ async function handleCommand(chatId: number, text: string, messageId: number, fr
 
     case '/status': {
       const last = getLastResult();
-      if (!last) {
-        await sendMessage(chatId, '📭 Нет результатов. Запустите /test', messageId);
-      } else {
-        await sendMessage(chatId, formatResult(last), messageId);
-      }
+      if (!last) await sendMessage(chatId, '📭 Нет результатов', messageId);
+      else await sendMessage(chatId, formatResult(last), messageId);
       break;
     }
 
     case '/report': {
       const last = getLastResult();
       if (!last) {
-        await sendMessage(chatId, '📭 Нет результатов. Запустите /test', messageId);
+        await sendMessage(chatId, '📭 Нет результатов', messageId);
         return;
       }
       const detailed = formatResult(last);
@@ -219,7 +327,6 @@ async function handleCommand(chatId: number, text: string, messageId: number, fr
         `<b>📋 Config:</b>`,
         `Target: ${process.env.BASE_URL || 'https://dev.sanatanadharma.world'}`,
         `Browser: Chromium`,
-        `Retries: 2`,
       ].join('\n');
       await sendMessage(chatId, extra, messageId);
       break;
@@ -229,12 +336,14 @@ async function handleCommand(chatId: number, text: string, messageId: number, fr
       const help = [
         '<b>🧪 SDW E2E Bot</b>',
         '',
-        '/test — Запустить все тесты',
-        '/smoke — Только smoke тесты',
-        '/auth — Только auth тесты',
-        '/status — Последний результат',
-        '/report — Подробный отчёт',
-        '/help — Эта справка',
+        '/test — All tests',
+        '/smoke — Smoke tests',
+        '/auth — Auth tests',
+        '/status — Last result',
+        '/report — Detailed report',
+        '',
+        '🤖 <b>AI Chat:</b> Just send a text message!',
+        'Example: "Check the lectures page" or "Write a test for search"',
       ].join('\n');
       await sendMessage(chatId, help, messageId);
       break;
@@ -261,6 +370,8 @@ async function pollUpdates(): Promise<void> {
     }
   } catch (e) {
     console.error('Poll error:', e);
+    // Add delay on error to avoid loop
+    await new Promise(r => setTimeout(r, 2000));
   }
 }
 
@@ -272,24 +383,9 @@ async function main(): Promise<void> {
 
   console.log('🤖 SDW E2E Bot started');
   console.log(`📢 Chat: ${ALLOWED_CHAT_ID}`);
+  console.log(`🧠 AI URL: ${OPENCLAW_API_URL}`);
 
-  // Set bot commands
-  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/setMyCommands`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      commands: [
-        { command: 'test', description: 'Запустить все тесты' },
-        { command: 'smoke', description: 'Smoke тесты' },
-        { command: 'auth', description: 'Auth тесты' },
-        { command: 'status', description: 'Последний результат' },
-        { command: 'report', description: 'Подробный отчёт' },
-        { command: 'help', description: 'Справка' },
-      ],
-    }),
-  });
-
-  // Long polling loop
+  // Poll
   while (true) {
     await pollUpdates();
   }
