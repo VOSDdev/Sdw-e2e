@@ -1,16 +1,13 @@
 services:
-  e2e-bot:
-    build: .
-    container_name: sdw-e2e-bot
+  e2e-runner:
+    image: mcr.microsoft.com/playwright:v1.50.0-noble
+    container_name: sdw-e2e-runner
     restart: unless-stopped
+    command: tail -f /dev/null
     environment:
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
       - BASE_URL=${BASE_URL:-https://dev.sanatanadharma.world}
-      - OPENCLAW_API_URL=http://host.docker.internal:18790/v1/chat/completions
     volumes:
       - ./test-results:/app/test-results
       - /opt/sdw-source:/app/source:ro
+      - ./:/app
     mem_limit: 2g
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
