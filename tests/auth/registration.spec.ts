@@ -21,7 +21,7 @@ test.describe('Registration @auth', () => {
 
   test('Login link navigates to signin page', async ({ page }) => {
     await page.goto(URLS.register);
-    await page.getByTestId('registration-login-link').locator('a').click();
+    await page.getByTestId('registration-login-link').click();
     await page.waitForURL('**/signin**', { timeout: 5000 });
   });
 
