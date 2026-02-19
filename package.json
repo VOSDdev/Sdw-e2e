@@ -9,10 +9,13 @@
     "test:mobile": "npx playwright test --project=mobile",
     "report": "npx playwright show-report",
     "test:auth": "npx playwright test --grep @auth",
-    "test:headed": "npx playwright test --headed"
+    "test:headed": "npx playwright test --headed",
+    "bot": "npx tsx bot/telegram-bot.ts",
+    "bot:start": "nohup npx tsx bot/telegram-bot.ts > /tmp/sdw-e2e-bot.log 2>&1 &"
   },
   "devDependencies": {
     "@playwright/test": "^1.50.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.0"
   }
 }
