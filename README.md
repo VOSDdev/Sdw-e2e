@@ -1,59 +1,184 @@
-# SDW E2E Tests
+# SDW E2E — Автоматизированное тестирование sanatanadharma.world
 
-End-to-end testing framework for [Sanatana Dharma World](https://sanatanadharma.world) using Playwright + TypeScript.
+## Telegram бот (@sdw_qa_bot)
 
-## Setup
+### Команды
 
-```bash
-npm install
-npx playwright install chromium
-```
+| Команда | Описание |
+|---------|----------|
+| `/test` | Запуск **всех** тестов (smoke + auth). Бот отправляет «🚀 Запуск...», ждёт завершения, присылает отчёт |
+| `/smoke` | Только **smoke** тесты — быстрая проверка «сайт жив?» |
+| `/auth` | Только **auth** тесты — формы логина и регистрации |
+| `/status` | Результат **последнего** прогона (без перезапуска) |
+| `/report` | Подробный отчёт с доп. информацией (target URL, браузер, retries) |
+| `/help` | Список команд |
 
-## Configuration
-
-Copy and fill environment variables:
-
-```bash
-cp config/dev.env .env
-# Edit .env with real credentials
-```
-
-| Variable | Description |
-|----------|-------------|
-| `BASE_URL` | Target environment URL |
-| `E2E_USER_EMAIL` | Regular test user email |
-| `E2E_USER_PASSWORD` | Regular test user password |
-| `E2E_ADMIN_EMAIL` | Admin test user email |
-| `E2E_ADMIN_PASSWORD` | Admin test user password |
-| `TELEGRAM_BOT_TOKEN` | Telegram bot token for reports |
-| `TELEGRAM_CHAT_ID` | Telegram chat ID for reports |
-
-## Running Tests
-
-```bash
-npm test              # All tests
-npm run test:smoke    # Smoke tests only
-npm run test:chromium # Desktop only
-npm run test:mobile   # Mobile only
-npm run report        # Open HTML report
-```
-
-## Structure
+### Формат отчёта
 
 ```
-├── pages/          # Page Object Models
-├── fixtures/       # Test fixtures & data
-├── utils/          # Helpers & reporters
+🟢 E2E: All Tests
+
+✅ Passed: 21
+❌ Failed: 0
+⏭ Skipped: 0
+📊 Total: 21
+⏱ Duration: 7.1s
+🕐 19.02.2026, 22:15:00
+```
+
+При наличии упавших тестов:
+```
+🔴 E2E: All Tests
+
+✅ Passed: 19
+❌ Failed: 2
+...
+
+Failed:
+  • Login page elements are visible
+  • Homepage has banner and CTA
+```
+
+### Ограничения
+- Бот отвечает только в группе **Sdw.qa** — в других чатах «⛔ Unauthorized»
+- Если тесты уже запущены — «⏳ Тесты уже запущены, подождите...»
+- Таймаут на прогон: 120 секунд
+
+---
+
+## Тесты
+
+### Smoke Tests (`/smoke`) — 10 тестов
+
+Быстрая проверка работоспособности сайта.
+
+| # | Тест | Что проверяет |
+|---|------|---------------|
+| 1 | Home page loads | Главная (`/ru`) отдаёт 200, нет ошибок в title |
+| 2 | Forum page loads | Форум (`/ru/forum`) отдаёт 200 |
+| 3 | Library page loads | Библиотека (`/ru/library`) отдаёт 200 |
+| 4 | Audio page loads | Аудиогалерея (`/ru/audiofiles`) отдаёт 200 |
+| 5 | Search page loads | Поиск (`/ru/search`) отдаёт 200 |
+| 6 | Login page loads | Логин (`/ru/signin`) отдаёт 200 |
+| 7 | Register page loads | Регистрация (`/ru/signup`) отдаёт 200 |
+| 8 | Homepage has banner and CTA | Баннер, заголовок и CTA-кнопка видимы на главной |
+| 9 | Header navigation visible | Логотип и элементы навигации в хедере видимы |
+| 10 | Footer is visible | Футер отображается при прокрутке |
+
+### Auth Tests — Login (`/auth`) — 7 тестов
+
+Проверка формы авторизации.
+
+| # | Тест | Что проверяет |
+|---|------|---------------|
+| 1 | Login page elements visible | Все элементы формы видимы: email, пароль, кнопка «Войти», Google, ссылки на регистрацию и «Забыли пароль» |
+| 2 | Submit disabled when empty | Кнопка «Войти» заблокирована (`disabled`) пока поля пустые |
+| 3 | Submit enables when filled | Кнопка активируется после заполнения email и пароля |
+| 4 | Invalid credentials stays on page | При неверных данных пользователь остаётся на `/signin` |
+| 5 | Register link → signup | Клик «Регистрация» ведёт на `/signup` |
+| 6 | Forgot link → forgot | Клик «Забыли пароль» ведёт на `/forgot` |
+| 7 | Show password toggle | Иконка 👁 переключает тип поля между `password` и `text` |
+
+### Auth Tests — Registration (`/auth`) — 4 теста
+
+Проверка формы регистрации.
+
+| # | Тест | Что проверяет |
+|---|------|---------------|
+| 1 | Registration form elements visible | Все элементы видимы: email, пароль, подтверждение пароля, кнопка «Зарегистрироваться», Google, ссылка на логин |
+| 2 | Submit disabled when empty | Кнопка «Зарегистрироваться» заблокирована пока поля пустые |
+| 3 | Login link → signin | Клик «Уже есть аккаунт» ведёт на `/signin` |
+| 4 | Password mismatch shows error | При разных паролях в полях «Пароль» и «Подтверждение» показывается ошибка |
+
+---
+
+## Техническая информация
+
+### Стек
+- **Playwright** v1.50 + TypeScript
+- **Браузер:** Chromium (headless)
+- **Target:** `https://dev.sanatanadharma.world`
+- **Docker:** `mcr.microsoft.com/playwright:v1.50.0-noble`
+- **Деплой:** Editorial VPS в Docker-контейнере
+
+### Структура проекта
+
+```
+sdw-e2e/
 ├── tests/
-│   └── smoke/      # Smoke tests
-├── config/         # Environment configs
-└── .github/        # CI workflows
+│   ├── smoke/smoke.spec.ts        # Smoke тесты (@smoke)
+│   └── auth/
+│       ├── auth.spec.ts           # Login тесты (@auth)
+│       └── registration.spec.ts   # Registration тесты (@auth)
+├── pages/                          # Page Objects
+│   ├── base.page.ts               # Базовый класс
+│   ├── home.page.ts               # Главная
+│   ├── login.page.ts              # Логин
+│   ├── header.page.ts             # Хедер
+│   ├── footer.page.ts             # Футер
+│   ├── forum.page.ts              # Форум
+│   ├── library.page.ts            # Библиотека
+│   ├── search.page.ts             # Поиск
+│   ├── article.page.ts            # Статья
+│   ├── audio.page.ts              # Аудио
+│   ├── profile.page.ts            # Профиль
+│   └── video.page.ts              # Видео
+├── fixtures/                       # Данные и фикстуры
+│   ├── test-data.ts               # URL-ы, публичные страницы
+│   ├── auth.fixture.ts            # Фикстура авторизации
+│   └── users.ts                   # Тестовые пользователи
+├── bot/telegram-bot.ts            # Telegram QA бот
+├── utils/
+│   ├── telegram-reporter.ts       # Репортер в Telegram
+│   └── helpers.ts                 # Утилиты
+├── Dockerfile
+├── docker-compose.yml
+└── playwright.config.ts
 ```
 
-## data-testid Convention
+### Локальный запуск
 
-Format: `{page}-{element}-{type}`
+```bash
+# Все тесты
+npx playwright test --project=chromium
 
-Types: `-button`, `-link`, `-input`, `-count`, `-text`, `-container`, `-list`, `-item`
+# По тегу
+npx playwright test --grep @smoke
+npx playwright test --grep @auth
 
-Example: `article-like-button`, `login-email-input`
+# С UI
+npx playwright test --headed
+
+# Отчёт
+npx playwright show-report
+```
+
+### Конвенция data-testid
+
+Все тесты используют атрибуты `data-testid` для поиска элементов. Формат: `{контекст}-{элемент}-{тип}`.
+
+| Тип | Суффикс | Пример |
+|-----|---------|--------|
+| Кнопка | `-button` | `login-submit-button` |
+| Ссылка | `-link` | `header-nav-forum-link` |
+| Поле ввода | `-input` | `login-email-input` |
+| Текст | `-text` | `content-likes-count` |
+| Контейнер | `-container` | `search-results-container` |
+| Список | `-list` | `library-books-list` |
+| Элемент списка | `-item` | `forum-topic-item` |
+| Форма | `-form` | `login-form` |
+| Модалка | `-dialog` | `forum-create-topic-dialog` |
+
+---
+
+## Планы развития
+
+| Фаза | Описание | Статус |
+|------|----------|--------|
+| 1 | Анализ и план | ✅ |
+| 2 | Расстановка data-testid (~130+ атрибутов) | ✅ |
+| 3 | Smoke + Auth тесты (21 тест) | ✅ |
+| 4 | Core Flows (лайки, избранное, форум) | 🔲 |
+| 5 | Media + i18n (плеер, галерея, языки) | 🔲 |
+| 6 | Telegram Bot + Reporter | ✅ |
+| 7 | Mobile Viewport | 🔲 |
