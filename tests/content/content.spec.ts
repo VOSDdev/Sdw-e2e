@@ -35,11 +35,11 @@ test.describe('@content Content Page', () => {
       const img = images.nth(i);
 
       await img.scrollIntoViewIfNeeded();
-      await page.waitForTimeout(500);
       await expect(img).toBeVisible();
 
       const src = await img.getAttribute('src') ?? await img.getAttribute('ngSrc') ?? '';
 
+      // Must contain /upload/ (real preview), not clouds.webp (placeholder)
       expect(
         src,
         `Similar image #${i} should use real preview (/upload/), got: ${src}`,
@@ -50,14 +50,11 @@ test.describe('@content Content Page', () => {
         `Similar image #${i} should NOT be the placeholder`,
       ).not.toContain('clouds.webp');
 
-      // Verify image actually loaded
-      const naturalWidth = await img.evaluate(
-        (el: HTMLImageElement) => el.naturalWidth,
-      );
-      expect(
-        naturalWidth,
-        `Similar image #${i} should be loaded (naturalWidth > 0)`,
-      ).toBeGreaterThan(0);
+      // Wait for image to actually load (network fetch may be slow)
+      await expect(async () => {
+        const w = await img.evaluate((el: HTMLImageElement) => el.naturalWidth);
+        expect(w).toBeGreaterThan(0);
+      }).toPass({ timeout: 5_000 });
     }
   });
 });
