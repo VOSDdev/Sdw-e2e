@@ -26,3 +26,12 @@ export const SEARCH_QUERIES = {
   noResults: 'xyznonexistent123',
   special: 'भगवद्गीता',
 } as const;
+
+/** Articles known to have similar articles with previews */
+export const ARTICLES = {
+  /** "Линия передачи" — has tags, similar articles, preview images */
+  withSimilar: {
+    categorySlug: 'o-tradicii',
+    contentSlug: 'liniya-peredachi',
+  },
+} as const;

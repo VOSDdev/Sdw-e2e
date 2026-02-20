@@ -1,3 +1,4 @@
+import { type Locator } from '@playwright/test';
 import { BasePage } from './base.page';
 
 export class ArticlePage extends BasePage {
@@ -8,8 +9,15 @@ export class ArticlePage extends BasePage {
   readonly tagsList = this.getByTestId('content-tags-list');
   readonly similarList = this.getByTestId('content-similar-list');
   readonly purchaseButton = this.getByTestId('content-purchase-button');
+  readonly viewsCount = this.getByTestId('content-views-count');
+  readonly dateButton = this.getByTestId('content-date');
 
-  async open(slug: string): Promise<void> {
-    await this.navigate(`/articles/${slug}`);
+  /** All <img> inside the similar articles section */
+  get similarImages(): Locator {
+    return this.similarList.locator('img.similar-img');
+  }
+
+  async open(categorySlug: string, contentSlug: string): Promise<void> {
+    await this.navigate(`/ru/categories/${categorySlug}/${contentSlug}`);
   }
 }
