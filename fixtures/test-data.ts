@@ -31,7 +31,7 @@ export const SEARCH_QUERIES = {
 export const ARTICLES = {
   /** "Линия передачи" — has tags, similar articles, preview images */
   withSimilar: {
-    categorySlug: 'o-tradicii',
-    contentSlug: 'liniya-peredachi',
+    categorySlug: '1',
+    contentSlug: 'shivaizm1',
   },
 } as const;
