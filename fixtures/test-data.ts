@@ -32,6 +32,6 @@ export const ARTICLES = {
   /** "Линия передачи" — has tags, similar articles, preview images */
   withSimilar: {
     categorySlug: '1',
-    contentSlug: 'shivaizm1',
+    contentSlug: 'advajta-vedanta',
   },
 } as const;
