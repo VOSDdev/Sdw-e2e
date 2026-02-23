@@ -1,14 +1,43 @@
-import { test as base, type BrowserContext, type Page } from '@playwright/test';
+import { test as base, type Page } from '@playwright/test';
 import { users } from './users';
+import * as fs from 'fs';
+import * as path from 'path';
+
+const AUTH_DIR = path.resolve(__dirname, '../.auth');
 
 type AuthFixtures = {
-  authenticatedContext: BrowserContext;
   authedPage: Page;
 };
 
+/**
+ * Get the storage state path for the current project.
+ * Each project (chromium, mobile) gets its own auth state file.
+ */
+function storagePath(projectName: string): string {
+  return path.join(AUTH_DIR, `${projectName || 'default'}.json`);
+}
+
 export const test = base.extend<AuthFixtures>({
-  authenticatedContext: async ({ browser }, use) => {
-    const context = await browser.newContext();
+  authedPage: async ({ browser, contextOptions }, use, testInfo) => {
+    const stateFile = storagePath(testInfo.project.name);
+
+    // Reuse existing auth state if available (avoid repeated logins / rate limit)
+    if (fs.existsSync(stateFile)) {
+      const context = await browser.newContext({
+        ...contextOptions,
+        storageState: stateFile,
+      });
+      const page = await context.newPage();
+      await use(page);
+      await page.close();
+      await context.close();
+      return;
+    }
+
+    // First run: login and save state
+    fs.mkdirSync(AUTH_DIR, { recursive: true });
+
+    const context = await browser.newContext(contextOptions);
     const page = await context.newPage();
 
     await page.goto('/ru/signin');
@@ -16,7 +45,6 @@ export const test = base.extend<AuthFixtures>({
     await page.getByTestId('login-email-input').fill(users.regular.email);
     await page.getByTestId('login-password-input').fill(users.regular.password);
 
-    // Click submit and wait for the API response
     const [response] = await Promise.all([
       page.waitForResponse(
         (r) =>
@@ -31,18 +59,14 @@ export const test = base.extend<AuthFixtures>({
       throw new Error(`Login failed: ${response.status()}`);
     }
 
-    // Wait for the app to process auth token and settle
     await page.waitForTimeout(3000);
-    await page.close();
 
-    await use(context);
-    await context.close();
-  },
-
-  authedPage: async ({ authenticatedContext }, use) => {
-    const page = await authenticatedContext.newPage();
+    // Save auth state for reuse
+    await context.storageState({ path: stateFile });
+    
     await use(page);
     await page.close();
+    await context.close();
   },
 });
 

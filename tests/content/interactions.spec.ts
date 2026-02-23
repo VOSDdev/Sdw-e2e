@@ -4,11 +4,8 @@ import { ARTICLES } from '../../fixtures/test-data';
 
 const { categorySlug, contentSlug } = ARTICLES.withSimilar;
 
-// Auth interactions only run on chromium — mobile viewport
-// shows a different login modal that needs separate handling
 test.describe('@content Authenticated Interactions', () => {
   test.describe.configure({ mode: 'serial' });
-  test.skip(({ browserName }) => browserName !== 'chromium', 'Auth tests: chromium only');
 
   test('like toggle: click adds selected, click again removes it', async ({ authedPage }) => {
     const article = new ArticlePage(authedPage);
